@@ -513,6 +513,7 @@ let route = getRoute();
 let activeSceneId = SCENES[0].id;
 let activePracticeCat = "全部";
 let activeTool = "diagnosis";
+let activeModuleId = MODULES[0].id;
 
 function loadState() {
   try {
@@ -556,6 +557,22 @@ function unique(list) {
   return Array.from(new Set(list));
 }
 
+function todayIndex(length) {
+  return new Date().getDate() % length;
+}
+
+function getDailyModule() {
+  return MODULES[todayIndex(MODULES.length)];
+}
+
+function getDailyScene() {
+  return SCENES[todayIndex(SCENES.length)];
+}
+
+function nextUnreadModule() {
+  return MODULES.find((item) => !state.readModules.includes(item.id)) || MODULES[0];
+}
+
 function getRoute() {
   return (location.hash || "#dashboard").replace("#", "") || "dashboard";
 }
@@ -590,79 +607,52 @@ function render() {
 
 function renderDashboard() {
   const pct = progressPercent();
-  const dailyModule = MODULES[new Date().getDate() % MODULES.length];
-  const dailyScene = SCENES[new Date().getDate() % SCENES.length];
+  const dailyModule = nextUnreadModule() || getDailyModule();
+  const dailyScene = getDailyScene();
+  activeModuleId = MODULES.some((item) => item.id === activeModuleId) ? activeModuleId : dailyModule.id;
   return `
-    <section class="hero">
-      <div class="hero-main">
-        <div class="eyebrow">Personal trainer operating system</div>
-        <h1>把培训师能力练成肌肉记忆</h1>
-        <p>这是你的个人 TTT 学习平台：从成人学习、需求诊断、课程设计、带教反馈，到项目萃取和向上汇报。它不是资料仓库，而是每天能练、能写、能复盘的训练场。</p>
+    <section class="home-stack">
+      <article class="today-card">
+        <div class="eyebrow">今天只练一件事</div>
+        <h1>先练：${escapeHtml(dailyScene.title)}</h1>
+        <p>${escapeHtml(dailyScene.desc)} ${escapeHtml(dailyScene.coachTip)}</p>
         <div class="hero-actions">
-          <a class="btn" href="#practice">开始一个演练</a>
-          <a class="ghost-btn" href="#tools">打开工具箱</a>
+          <a class="btn" href="#practice" data-action="jump-scene" data-id="${dailyScene.id}">开始演练</a>
+          <a class="ghost-btn" href="#learn" data-action="select-module" data-id="${dailyModule.id}">看相关知识</a>
         </div>
-      </div>
-      <aside class="panel daily-card">
-        <div>
-          <div class="eyebrow">今日建议</div>
-          <h2 class="daily-title">${escapeHtml(dailyModule.title)}</h2>
-          <p class="daily-meta">${escapeHtml(dailyModule.drill)}</p>
-        </div>
-        <div class="meter" aria-label="总体进度">
-          <div class="meter-top"><span>总体进度</span><strong>${pct}%</strong></div>
-          <div class="meter-track"><div class="meter-fill" style="width:${pct}%"></div></div>
-        </div>
-        <div class="quote-card">
-          今日演练：<strong>${escapeHtml(dailyScene.title)}</strong><br />
-          ${escapeHtml(dailyScene.coachTip)}
-        </div>
-        <a class="btn" href="#practice" data-action="jump-scene" data-id="${dailyScene.id}">练这个场景</a>
-      </aside>
-    </section>
+      </article>
 
-    <section class="stat-grid">
-      ${renderStat(state.readModules.length, "已读知识模块")}
-      ${renderStat(state.completedScenes.length, "完成场景演练")}
-      ${renderStat(Object.keys(state.quizAnswers).length, "已答测验")}
-      ${renderStat(state.actions.length, "行动卡")}
-    </section>
+      <section class="quick-grid" aria-label="快捷入口">
+        ${renderQuickAction("学习", dailyModule.title, `${dailyModule.minutes} 分钟`, "#learn", dailyModule.id)}
+        ${renderQuickAction("工具", "需求诊断卡", "马上填写", "#tools")}
+        ${renderQuickAction("我的", `${pct}% 完成`, nextSuggestion(), "#progress")}
+      </section>
 
-    <section>
-      <div class="section-head">
+      <article class="next-card">
         <div>
-          <h2>四条训练线</h2>
-          <p>平台把你电脑里的 TTT 手册、培训师技能课件和项目萃取资料，重组为四条可练路径。</p>
+          <span class="tag">下一张知识卡</span>
+          <h2>${escapeHtml(dailyModule.no)} ${escapeHtml(dailyModule.title)}</h2>
+          <p>${escapeHtml(dailyModule.summary)}</p>
         </div>
-      </div>
-      <div class="card-grid">
-        ${renderPathCard("诊断线", "业务方说要培训时，先定位目标、差距、证据和根因。", ["需求诊断", "绩效根因", "价值汇报"])}
-        ${renderPathCard("设计线", "把内容变成可观察行为，设计练习、反馈和考核。", ["五星教学法", "课程设计", "检核标准"])}
-        ${renderPathCard("带教线", "用开放问题和 ASA 反馈，帮助店长与员工真正改变行为。", ["教练九步", "开放问题", "行动卡"])}
-        ${renderPathCard("萃取线", "把优秀门店经验拆成角色、动作、流程和工具。", ["项目萃取", "SOP", "复刻"])}
-        ${renderPathCard("授课线", "练开场、互动、控场和收尾，让课堂产生参与。", ["破冰", "互动", "控场"])}
-        ${renderPathCard("面试线", "把经验讲成框架，把框架讲成案例，把案例讲成证据。", ["面试", "PREP", "案例表达"])}
-      </div>
-    </section>
-
-    <section>
-      <div class="section-head">
-        <div>
-          <h2>资料来源</h2>
-          <p>为了避免“AI 乱编”，本平台内容主要来自你电脑中的培训师资料，并做成可练习的知识卡。</p>
-        </div>
-      </div>
-      <div class="card">
-        <ul class="bullet-list">
-          ${SOURCES.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        </ul>
-      </div>
+        <a class="text-btn" href="#learn" data-action="select-module" data-id="${dailyModule.id}">去学习</a>
+      </article>
     </section>
   `;
 }
 
 function renderStat(value, label) {
   return `<div class="stat"><strong>${value}</strong><span>${escapeHtml(label)}</span></div>`;
+}
+
+function renderQuickAction(label, title, meta, href, moduleId = "") {
+  const moduleAttr = moduleId ? ` data-action="select-module" data-id="${escapeHtml(moduleId)}"` : "";
+  return `
+    <a class="quick-card" href="${href}"${moduleAttr}>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(title)}</strong>
+      <small>${escapeHtml(meta)}</small>
+    </a>
+  `;
 }
 
 function renderPathCard(title, text, tags) {
@@ -676,45 +666,71 @@ function renderPathCard(title, text, tags) {
 }
 
 function renderLearn() {
+  const current = MODULES.find((item) => item.id === activeModuleId) || nextUnreadModule();
+  activeModuleId = current.id;
   return `
-    <header class="page-header">
+    <header class="page-header compact-page-header">
       <div class="page-kicker">Learn</div>
-      <h1 class="page-title">知识路径</h1>
-      <p class="page-subtitle">每张卡都按“结论、动作、练习”重写，避免只收藏不使用。读完一张就标记，它会进入你的进度。</p>
+      <h1 class="page-title">一次只学一张卡</h1>
+      <p class="page-subtitle">内容已经压成“结论、动作、练习”。手机上不用滚完整本资料，先把一张卡用起来。</p>
     </header>
-    <div class="module-grid">
-      ${MODULES.map(renderModuleCard).join("")}
+    <div class="module-picker" aria-label="选择知识卡">
+      ${MODULES.map(renderModulePickerButton).join("")}
     </div>
+    ${renderActiveModule(current)}
+    <section class="module-checklist" aria-label="完整学习路径">
+      ${MODULES.map(renderModuleRow).join("")}
+    </section>
   `;
 }
 
-function renderModuleCard(module) {
+function renderModulePickerButton(module) {
   const read = state.readModules.includes(module.id);
   return `
-    <article class="module-card">
+    <button class="module-chip ${module.id === activeModuleId ? "active" : ""} ${read ? "done" : ""}" data-action="select-module" data-id="${module.id}">
+      <span>${module.no}</span>
+      <strong>${escapeHtml(module.title)}</strong>
+    </button>
+  `;
+}
+
+function renderActiveModule(module) {
+  const read = state.readModules.includes(module.id);
+  return `
+    <article class="module-focus">
       <div class="module-top">
-        <div class="number-pill">${module.no}</div>
+        <div>
+          <span class="tag">${escapeHtml(module.level)} · ${module.minutes} 分钟</span>
+          <h2>${escapeHtml(module.title)}</h2>
+          <p>${escapeHtml(module.subtitle)}</p>
+        </div>
         <button class="small-btn ${read ? "active" : ""}" data-action="toggle-module" data-id="${module.id}">
-          ${read ? "已读" : "标记已读"}
+          ${read ? "已读" : "标记"}
         </button>
       </div>
-      <div>
-        <div class="tag-row">
-          <span class="source-tag">${escapeHtml(module.source)}</span>
-          <span class="tag">${escapeHtml(module.level)}</span>
-          <span class="tag">${module.minutes} 分钟</span>
-        </div>
-        <h3>${escapeHtml(module.title)}</h3>
-        <p>${escapeHtml(module.subtitle)}</p>
-      </div>
-      <div class="module-body">
-        <div class="quote-card">${escapeHtml(module.summary)}</div>
+      <div class="quote-card">${escapeHtml(module.summary)}</div>
+      <details class="module-detail">
+        <summary>展开 3 个关键动作</summary>
         <ul class="bullet-list">
-          ${module.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+          ${module.bullets.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         </ul>
-        <div class="quote-card"><strong>练习：</strong>${escapeHtml(module.drill)}</div>
+      </details>
+      <div class="practice-card">
+        <strong>今天练一下</strong>
+        <p>${escapeHtml(module.drill)}</p>
       </div>
     </article>
+  `;
+}
+
+function renderModuleRow(module) {
+  const read = state.readModules.includes(module.id);
+  return `
+    <button class="module-row ${read ? "done" : ""}" data-action="select-module" data-id="${module.id}">
+      <span>${read ? "✓" : module.no}</span>
+      <strong>${escapeHtml(module.title)}</strong>
+      <small>${escapeHtml(module.level)}</small>
+    </button>
   `;
 }
 
@@ -726,10 +742,10 @@ function renderPractice() {
   activeSceneId = activeScene.id;
   ensureConversation(activeSceneId);
   return `
-    <header class="page-header">
+    <header class="page-header compact-page-header">
       <div class="page-kicker">Practice</div>
-      <h1 class="page-title">场景演练</h1>
-      <p class="page-subtitle">这里是离线可用的角色演练。它不会调用外部大模型，也不会暴露任何 API Key；系统会根据你的回应检查“接住、诊断、提问、方案、衡量”等动作。</p>
+      <h1 class="page-title">开口练一轮</h1>
+      <p class="page-subtitle">先接住对方，再问一个诊断问题。系统会给你简短反馈。</p>
     </header>
     <div class="filter-row">
       ${cats
@@ -784,12 +800,12 @@ function renderChatPanel(scene) {
       </div>
       <form class="chat-form" data-form="chat">
         <label class="sr-only" for="chat-input">输入你的回应</label>
-        <textarea id="chat-input" name="message" placeholder="输入你的回应。建议先接住对方，再问一个诊断问题。"></textarea>
+        <textarea id="chat-input" name="message" placeholder="例如：我理解这个问题很急。你希望哪个指标在什么时候改善？"></textarea>
         <div class="row-actions">
           <button class="btn" type="submit">发送回应</button>
-          <button class="ghost-btn" type="button" data-action="coach-now" data-id="${scene.id}">现在要反馈</button>
+          <button class="ghost-btn" type="button" data-action="coach-now" data-id="${scene.id}">要反馈</button>
         </div>
-        <p class="hint">提示：优秀回应通常包含认可、目标、现状差距、具体行为、根因、下一步和衡量方式。</p>
+        <p class="hint">小提示：一句认可 + 一个开放问题，已经比直接接单好很多。</p>
       </form>
     </aside>
   `;
@@ -822,10 +838,10 @@ function ensureConversation(sceneId) {
 
 function renderTools() {
   return `
-    <header class="page-header">
+    <header class="page-header compact-page-header">
       <div class="page-kicker">Tools</div>
-      <h1 class="page-title">训练工具箱</h1>
-      <p class="page-subtitle">把方法论变成可填写、可复用、可复盘的工作卡。所有内容保存在当前浏览器本地。</p>
+      <h1 class="page-title">要用时再打开</h1>
+      <p class="page-subtitle">工具只保留可填写的工作卡，适合在手机上临时记录。</p>
     </header>
     <section class="tool-grid">
       <aside class="tool-card">
@@ -1045,10 +1061,10 @@ function renderProgress() {
   const pct = progressPercent();
   const journals = buildJournal();
   return `
-    <header class="page-header">
+    <header class="page-header compact-page-header">
       <div class="page-kicker">Progress</div>
-      <h1 class="page-title">进度复盘</h1>
-      <p class="page-subtitle">真正的成长不是看了多少资料，而是你有没有把一次回应、一次带教、一次课程设计变得更专业。</p>
+      <h1 class="page-title">我的练习</h1>
+      <p class="page-subtitle">只记录真正做过的学习、演练和行动卡。</p>
     </header>
     <section class="progress-grid">
       <article class="progress-card">
@@ -1382,6 +1398,11 @@ document.addEventListener("click", (event) => {
       ? state.readModules.filter((item) => item !== id)
       : [...state.readModules, id];
     saveState();
+    render();
+  }
+
+  if (action === "select-module") {
+    activeModuleId = target.dataset.id;
     render();
   }
 
